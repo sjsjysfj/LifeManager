@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
   Tabs,
   Table,
@@ -32,6 +32,106 @@ import type { Task, TaskStatus } from '../types';
 import MarkdownEditor from '../components/MarkdownEditor';
 
 const { Option } = Select;
+
+type TaskKanbanProps = {
+  tasks: Task[];
+  onEdit: (task: Task) => void;
+  onDragEnd: (result: DropResult) => void;
+};
+
+const TaskKanban: React.FC<TaskKanbanProps> = React.memo(({ tasks, onEdit, onDragEnd }) => {
+  const columns = useMemo(() => ([
+    { id: 'todo' as TaskStatus, title: '待办 (To Do)' },
+    { id: 'in_progress' as TaskStatus, title: '进行中 (In Progress)' },
+    { id: 'done' as TaskStatus, title: '已完成 (Done)' },
+  ]), []);
+
+  const tasksByStatus = useMemo(() => {
+    const map: Record<TaskStatus, Task[]> = {
+      todo: [],
+      in_progress: [],
+      done: [],
+    };
+    tasks.forEach(task => {
+      map[task.status].push(task);
+    });
+    return map;
+  }, [tasks]);
+
+  return (
+    <DragDropContext onDragEnd={onDragEnd}>
+      <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: 10 }}>
+        {columns.map(col => (
+          <Droppable key={col.id} droppableId={col.id}>
+            {(provided, snapshot) => (
+              <div
+                ref={provided.innerRef}
+                {...provided.droppableProps}
+                style={{
+                  background: snapshot.isDraggingOver ? '#e6f7ff' : '#f5f5f5',
+                  padding: 10,
+                  width: 300,
+                  minWidth: 300,
+                  borderRadius: 8,
+                  minHeight: 400
+                }}
+              >
+                <h3 style={{ marginBottom: 16, textAlign: 'center' }}>{col.title}</h3>
+                {tasksByStatus[col.id].map((task, index) => (
+                  <Draggable key={task.id} draggableId={task.id} index={index}>
+                    {(provided, snapshot) => (
+                      <div
+                        ref={provided.innerRef}
+                        {...provided.draggableProps}
+                        {...provided.dragHandleProps}
+                        style={{
+                          userSelect: 'none',
+                          marginBottom: 8,
+                          ...provided.draggableProps.style,
+                        }}
+                      >
+                        <Card
+                          size="small"
+                          title={task.title}
+                          extra={
+                            <Button
+                              type="text"
+                              size="small"
+                              icon={<EditOutlined />}
+                              onClick={() => onEdit(task)}
+                            />
+                          }
+                          style={{
+                            boxShadow: snapshot.isDragging ? '0 4px 8px rgba(0,0,0,0.1)' : 'none',
+                          }}
+                        >
+                          <Tag color={task.type === 'study' ? 'blue' : task.type === 'habit' ? 'green' : 'orange'}>
+                            {task.type === 'study' ? '学习' : task.type === 'habit' ? '习惯' : '生活'}
+                          </Tag>
+                          <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>{task.dueDate}</span>
+                        </Card>
+                      </div>
+                    )}
+                  </Draggable>
+                ))}
+                {provided.placeholder}
+              </div>
+            )}
+          </Droppable>
+        ))}
+      </div>
+    </DragDropContext>
+  );
+});
+
+type TaskTableProps = {
+  tasks: Task[];
+  columns: any[];
+};
+
+const TaskTable: React.FC<TaskTableProps> = React.memo(({ tasks, columns }) => {
+  return <Table dataSource={tasks} columns={columns} rowKey="id" />;
+});
 
 const TaskManager: React.FC = () => {
   const [activeTab, setActiveTab] = useState('table');
@@ -84,7 +184,7 @@ const TaskManager: React.FC = () => {
     setIsModalVisible(true);
   };
 
-  const handleEdit = (task: Task) => {
+  const handleEdit = useCallback((task: Task) => {
     setEditingTask(task);
     setDescription(task.description || '');
     form.setFieldsValue({
@@ -92,14 +192,14 @@ const TaskManager: React.FC = () => {
       dueDate: dayjs(task.dueDate),
     });
     setIsModalVisible(true);
-  };
+  }, [form]);
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = useCallback(async (id: string) => {
     const newTasks = tasks.filter(t => t.id !== id);
     setTasks(newTasks);
     await updateDB('tasks', newTasks);
     message.success('任务已删除');
-  };
+  }, [tasks]);
 
   const handleOk = async () => {
     try {
@@ -173,7 +273,7 @@ const TaskManager: React.FC = () => {
   };
 
   // --- Kanban Logic ---
-  const onDragEnd = async (result: DropResult) => {
+  const onDragEnd = useCallback(async (result: DropResult) => {
     if (!result.destination) return;
 
     const { source, destination, draggableId } = result;
@@ -189,85 +289,10 @@ const TaskManager: React.FC = () => {
 
     setTasks(updatedTasks);
     await updateDB('tasks', updatedTasks);
-  };
-
-  const renderKanban = () => {
-    const columns: { id: TaskStatus; title: string }[] = [
-      { id: 'todo', title: '待办 (To Do)' },
-      { id: 'in_progress', title: '进行中 (In Progress)' },
-      { id: 'done', title: '已完成 (Done)' },
-    ];
-
-    return (
-      <DragDropContext onDragEnd={onDragEnd}>
-        <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: 10 }}>
-          {columns.map(col => (
-            <Droppable key={col.id} droppableId={col.id}>
-              {(provided, snapshot) => (
-                <div
-                  ref={provided.innerRef}
-                  {...provided.droppableProps}
-                  style={{
-                    background: snapshot.isDraggingOver ? '#e6f7ff' : '#f5f5f5',
-                    padding: 10,
-                    width: 300,
-                    minWidth: 300,
-                    borderRadius: 8,
-                    minHeight: 400
-                  }}
-                >
-                  <h3 style={{ marginBottom: 16, textAlign: 'center' }}>{col.title}</h3>
-                  {tasks
-                    .filter(t => t.status === col.id)
-                    .map((task, index) => (
-                      <Draggable key={task.id} draggableId={task.id} index={index}>
-                        {(provided, snapshot) => (
-                          <div
-                            ref={provided.innerRef}
-                            {...provided.draggableProps}
-                            {...provided.dragHandleProps}
-                            style={{
-                              userSelect: 'none',
-                              marginBottom: 8,
-                              ...provided.draggableProps.style,
-                            }}
-                          >
-                            <Card
-                              size="small"
-                              title={task.title}
-                              extra={
-                                <Button
-                                  type="text"
-                                  size="small"
-                                  icon={<EditOutlined />}
-                                  onClick={() => handleEdit(task)}
-                                />
-                              }
-                              style={{
-                                boxShadow: snapshot.isDragging ? '0 4px 8px rgba(0,0,0,0.1)' : 'none',
-                              }}
-                            >
-                              <Tag color={task.type === 'study' ? 'blue' : task.type === 'habit' ? 'green' : 'orange'}>
-                                {task.type === 'study' ? '学习' : task.type === 'habit' ? '习惯' : '生活'}
-                              </Tag>
-                              <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>{task.dueDate}</span>
-                            </Card>
-                          </div>
-                        )}
-                      </Draggable>
-                    ))}
-                  {provided.placeholder}
-                </div>
-              )}
-            </Droppable>
-          ))}
-        </div>
-      </DragDropContext>
-    );
-  };
+  }, [tasks]);
 
   // --- Table Logic ---
-  const columns = [
+  const columns = useMemo(() => ([
     {
       title: '标题',
       dataIndex: 'title',
@@ -310,7 +335,7 @@ const TaskManager: React.FC = () => {
         </Space>
       ),
     },
-  ];
+  ]), [handleEdit, handleDelete]);
 
   return (
     <div style={{ padding: 24 }}>
@@ -329,8 +354,8 @@ const TaskManager: React.FC = () => {
         </Button>
       </div>
 
-      {activeTab === 'table' && <Table dataSource={tasks} columns={columns} rowKey="id" />}
-      {activeTab === 'kanban' && renderKanban()}
+      {activeTab === 'table' && <TaskTable tasks={tasks} columns={columns} />}
+      {activeTab === 'kanban' && <TaskKanban tasks={tasks} onEdit={handleEdit} onDragEnd={onDragEnd} />}
       {activeTab === 'gantt' && <div style={{textAlign: 'center', marginTop: 50}}>甘特图功能开发中...</div>}
 
       <Modal

@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import { Card, Col, Row, Typography, Checkbox, Progress, Button, List, message, Statistic } from 'antd';
 import { SmileOutlined, CheckCircleOutlined, ClockCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
@@ -25,16 +25,32 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
   const [data, setData] = useState<DBData | null>(null);
   const [today] = useState(dayjs().format('YYYY-MM-DD'));
 
-  // Refs for export
+  // Refs - must be declared before useEffect to maintain Hooks order
   const pageRef = useRef<HTMLDivElement>(null);
+  const dataRef = useRef<DBData | null>(null);
+  const journalsUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isProcessingRef = useRef(false);
 
   useEffect(() => {
     fetchData();
   }, []);
 
-  // Poll for data updates when window gains focus
-  // Use a ref to track if we're currently processing to avoid race conditions
-  const isProcessingRef = useRef(false);
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    return () => {
+      if (journalsUpdateTimer.current) {
+        clearTimeout(journalsUpdateTimer.current);
+        journalsUpdateTimer.current = null;
+        const latestData = dataRef.current;
+        if (latestData) {
+          void updateDB('journals', latestData.journals);
+        }
+      }
+    };
+  }, []);
 
   useEffect(() => {
       const handleFocus = () => {
@@ -115,24 +131,44 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
     }
   };
 
-  const handleLifeLogChange = async (val: string) => {
-    if (!data) return;
-    const updatedJournals = {
-      ...data.journals,
-      [today]: { ...data.journals[today], lifeLog: val }
-    };
-    setData({ ...data, journals: updatedJournals });
-    await updateDB('journals', updatedJournals);
+  const scheduleJournalsUpdate = (nextJournals: DBData['journals']) => {
+    if (journalsUpdateTimer.current) {
+      clearTimeout(journalsUpdateTimer.current);
+    }
+    journalsUpdateTimer.current = setTimeout(async () => {
+      try {
+        await updateDB('journals', nextJournals);
+      } catch (error) {
+        console.error('Failed to update journals:', error);
+        message.error('保存失败，请重试');
+      }
+    }, 400);
   };
 
-  const handleTomorrowPlanChange = async (val: string) => {
-    if (!data) return;
+  const handleLifeLogChange = (val: string) => {
+    const currentData = dataRef.current;
+    if (!currentData) return;
     const updatedJournals = {
-      ...data.journals,
-      [today]: { ...data.journals[today], tomorrowPlan: val }
+      ...currentData.journals,
+      [today]: { ...currentData.journals[today], lifeLog: val }
     };
-    setData({ ...data, journals: updatedJournals });
-    await updateDB('journals', updatedJournals);
+    const nextData = { ...currentData, journals: updatedJournals };
+    dataRef.current = nextData;
+    setData(nextData);
+    scheduleJournalsUpdate(updatedJournals);
+  };
+
+  const handleTomorrowPlanChange = (val: string) => {
+    const currentData = dataRef.current;
+    if (!currentData) return;
+    const updatedJournals = {
+      ...currentData.journals,
+      [today]: { ...currentData.journals[today], tomorrowPlan: val }
+    };
+    const nextData = { ...currentData, journals: updatedJournals };
+    dataRef.current = nextData;
+    setData(nextData);
+    scheduleJournalsUpdate(updatedJournals);
   };
 
   const handleHabitCheck = async (habitId: string) => {
@@ -179,21 +215,26 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
     }
   };
 
+  // Derived Data - must be before early return to maintain Hooks order
+  const displayTasks = useMemo(() => {
+    if (!data) return [];
+    return data.tasks.filter(t => {
+      return t.planDate === today || t.dueDate === today;
+    });
+  }, [data?.tasks, today]);
+
+  const todayFocusLogs = useMemo(() => {
+    if (!data) return [];
+    return data.focusLogs.filter(l => l.date === today);
+  }, [data?.focusLogs, today]);
+
+  const totalFocusTime = useMemo(() => {
+    return todayFocusLogs.reduce((acc, cur) => acc + cur.duration, 0);
+  }, [todayFocusLogs]);
+
   if (loading || !data) {
     return <div>Loading...</div>;
   }
-
-  // Derived Data
-  const displayTasks = data.tasks.filter(t => {
-      // Logic for displaying tasks in Daily Plan:
-      // 1. Task is explicitly marked for today's plan (t.planDate === today)
-      // 2. OR Task is due today (t.dueDate === today)
-      // 3. OR Task is already completed today (implied by planDate if we track completion date, but for now we stick to plan/due date)
-      return t.planDate === today || t.dueDate === today;
-  });
-
-  const todayFocusLogs = data.focusLogs.filter(l => l.date === today);
-  const totalFocusTime = todayFocusLogs.reduce((acc, cur) => acc + cur.duration, 0);
 
   return (
     <div ref={pageRef} style={{ padding: '10px' }}>

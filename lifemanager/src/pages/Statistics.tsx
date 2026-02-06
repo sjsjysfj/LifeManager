@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Card, Col, Row, Statistic, Typography } from 'antd';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 import dayjs from 'dayjs';
@@ -14,44 +14,58 @@ const Statistics: React.FC = () => {
     getDB().then(setData);
   }, []);
 
-  if (!data) return <div>Loading...</div>;
+  // Derived data - must be before early return to maintain Hooks order
+  const last7Days = useMemo(() => {
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = dayjs().subtract(6 - i, 'day');
+      return d.format('YYYY-MM-DD');
+    });
+  }, []);
 
-  // Prepare Data for Charts
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const d = dayjs().subtract(6 - i, 'day');
-    return d.format('YYYY-MM-DD');
-  });
+  const focusData = useMemo(() => {
+    if (!data) return [];
+    return last7Days.map(date => {
+      const logs = data.focusLogs.filter(l => l.date === date);
+      const totalMinutes = logs.reduce((acc, cur) => acc + cur.duration, 0);
+      return {
+        date: dayjs(date).format('MM-DD'),
+        minutes: totalMinutes
+      };
+    });
+  }, [data?.focusLogs, last7Days]);
 
-  const focusData = last7Days.map(date => {
-    const logs = data.focusLogs.filter(l => l.date === date);
-    const totalMinutes = logs.reduce((acc, cur) => acc + cur.duration, 0);
-    return {
-      date: dayjs(date).format('MM-DD'),
-      minutes: totalMinutes
-    };
-  });
-
-  const habitData = last7Days.map(date => {
-      // Calculate average completion rate for habits
+  const habitData = useMemo(() => {
+    if (!data) return [];
+    return last7Days.map(date => {
       const log = data.habitLogs[date] || {};
       let totalPercent = 0;
       let count = 0;
 
       data.habits.forEach(h => {
-          const val = log[h.id] || 0;
-          const p = Math.min(100, (val / h.targetValue) * 100);
-          totalPercent += p;
-          count++;
+        const val = log[h.id] || 0;
+        const p = Math.min(100, (val / h.targetValue) * 100);
+        totalPercent += p;
+        count++;
       });
 
       return {
-          date: dayjs(date).format('MM-DD'),
-          rate: count > 0 ? Math.round(totalPercent / count) : 0
+        date: dayjs(date).format('MM-DD'),
+        rate: count > 0 ? Math.round(totalPercent / count) : 0
       };
-  });
+    });
+  }, [data?.habitLogs, data?.habits, last7Days]);
 
-  const totalFocusAllTime = data.focusLogs.reduce((acc, cur) => acc + cur.duration, 0);
-  const totalCompletedTasks = data.tasks.filter(t => t.status === 'done').length;
+  const totalFocusAllTime = useMemo(() => {
+    if (!data) return 0;
+    return data.focusLogs.reduce((acc, cur) => acc + cur.duration, 0);
+  }, [data?.focusLogs]);
+
+  const totalCompletedTasks = useMemo(() => {
+    if (!data) return 0;
+    return data.tasks.filter(t => t.status === 'done').length;
+  }, [data?.tasks]);
+
+  if (!data) return <div>Loading...</div>;
 
   return (
     <div style={{ padding: 24 }}>
