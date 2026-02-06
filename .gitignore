@@ -1,0 +1,17 @@
+# Dependencies
+node_modules
+*/node_modules
+
+# Electron build artifacts
+lifemanager/dist-electron/
+lifemanager/release/
+
+# IDE and Agent directories
+.vscode/
+.idea/
+.trae/
+.cursor/
+.claude/
+*.log
+*.DS_Store
+Thumbs.db
