@@ -1,6 +1,7 @@
 // electron/db.ts
 import { app, ipcMain } from 'electron';
 import { JSONFilePreset } from 'lowdb/node';
+import type { Low } from 'lowdb';
 import path from 'path';
 
 // Define types here locally to avoid importing from src which might cause issues in electron build
@@ -67,7 +68,7 @@ const defaultData: DBData = {
   journals: {},
 };
 
-let db: any;
+let db: Low<DBData>;
 
 export const setupDB = async () => {
   const userDataPath = app.getPath('userData');
@@ -87,10 +88,12 @@ export const setupDB = async () => {
     return db.data;
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ipcMain.handle('db:update', async (_, key: keyof DBData, value: any) => {
     console.log(`[DB Update] Key: ${key}, Incoming value length: ${Array.isArray(value) ? value.length : 'N/A'}`);
 
     // Direct assignment instead of spread to ensure reference is updated correctly by lowdb
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (db.data as any)[key] = value;
 
     console.log(`[DB Update] Data in memory BEFORE write. Tasks count: ${db.data.tasks?.length}`);

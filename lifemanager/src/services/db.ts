@@ -16,6 +16,7 @@ export const getDB = async (): Promise<DBData> => {
   };
 };
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const updateDB = async (key: keyof DBData, value: any): Promise<DBData> => {
   if (window.electronAPI) {
     return await window.electronAPI.dbUpdate(key, value);

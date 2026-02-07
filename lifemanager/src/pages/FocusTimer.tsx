@@ -22,10 +22,15 @@ const FocusTimer: React.FC = () => {
   const [manualForm] = Form.useForm();
   const [manualContent, setManualContent] = useState('');
 
+  const [hasStarted, setHasStarted] = useState(false);
+
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startTimeRef = useRef<string | null>(null);
 
-  useEffect(() => {
+  const resetTimer = React.useCallback(() => {
+    setIsActive(false);
+    setHasStarted(false);
+    startTimeRef.current = null;
     if (mode === 'pomodoro') {
       setTime(25 * 60);
       setInitialTime(25 * 60);
@@ -36,62 +41,30 @@ const FocusTimer: React.FC = () => {
       setTime(0);
       setInitialTime(0);
     }
-    setIsActive(false);
-    if (timerRef.current) clearInterval(timerRef.current);
   }, [mode, customMinutes]);
 
   useEffect(() => {
-    if (isActive) {
-      timerRef.current = setInterval(() => {
-        setTime((prevTime) => {
-          if (mode === 'stopwatch') {
-            return prevTime + 1;
-          } else {
-            if (prevTime <= 0) {
-              handleComplete();
-              return 0;
-            }
-            return prevTime - 1;
-          }
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
+    // Only reset timer when mode or customMinutes change
+    const updateTimer = () => {
+        setIsActive(false);
+        setHasStarted(false);
+        startTimeRef.current = null;
+        if (mode === 'pomodoro') {
+          setTime(25 * 60);
+          setInitialTime(25 * 60);
+        } else if (mode === 'custom') {
+          setTime(customMinutes * 60);
+          setInitialTime(customMinutes * 60);
+        } else {
+          setTime(0);
+          setInitialTime(0);
+        }
     };
-  }, [isActive, mode]);
-
-  const handleStart = () => {
-    if (!startTimeRef.current) {
-        startTimeRef.current = dayjs().format('HH:mm');
-    }
-    setIsActive(true);
-  };
-
-  const handlePause = () => {
-    setIsActive(false);
-  };
-
-  const handleStop = () => {
-    Modal.confirm({
-      title: '结束专注?',
-      content: '确定要结束当前的专注计时吗？这将保存当前的记录。',
-      onOk: () => {
-        saveRecord();
-        resetTimer();
-      }
-    });
-  };
-
-  const handleComplete = () => {
-    setIsActive(false);
+    
+    updateTimer();
+    
     if (timerRef.current) clearInterval(timerRef.current);
-    message.success('专注完成！休息一下吧。');
-    saveRecord(true);
-    resetTimer();
-  };
+  }, [mode, customMinutes]);
 
   const saveRecord = async (completed = false) => {
     if (!startTimeRef.current) return;
@@ -132,16 +105,63 @@ const FocusTimer: React.FC = () => {
     }
   };
 
-  const resetTimer = () => {
+  const handleComplete = () => {
     setIsActive(false);
-    startTimeRef.current = null;
-    if (mode === 'pomodoro') {
-      setTime(25 * 60);
-    } else if (mode === 'custom') {
-      setTime(customMinutes * 60);
+    if (timerRef.current) clearInterval(timerRef.current);
+    message.success('专注完成！休息一下吧。');
+    saveRecord(true);
+    resetTimer();
+  };
+
+  // Use a ref to access the latest handleComplete in setInterval without re-triggering effect
+  const handleCompleteRef = useRef(handleComplete);
+  useEffect(() => {
+    handleCompleteRef.current = handleComplete;
+  });
+  useEffect(() => {
+    if (isActive) {
+      timerRef.current = setInterval(() => {
+        setTime((prevTime) => {
+          if (mode === 'stopwatch') {
+            return prevTime + 1;
+          } else {
+            if (prevTime <= 0) {
+              handleCompleteRef.current();
+              return 0;
+            }
+            return prevTime - 1;
+          }
+        });
+      }, 1000);
     } else {
-      setTime(0);
+      if (timerRef.current) clearInterval(timerRef.current);
     }
+    return () => {
+      if (timerRef.current) clearInterval(timerRef.current);
+    };
+  }, [isActive, mode]);
+
+  const handleStart = () => {
+    if (!startTimeRef.current) {
+        startTimeRef.current = dayjs().format('HH:mm');
+        setHasStarted(true);
+    }
+    setIsActive(true);
+  };
+
+  const handlePause = () => {
+    setIsActive(false);
+  };
+
+  const handleStop = () => {
+    Modal.confirm({
+      title: '结束专注?',
+      content: '确定要结束当前的专注计时吗？这将保存当前的记录。',
+      onOk: () => {
+        saveRecord();
+        resetTimer();
+      }
+    });
   };
 
   const toggleFullScreen = () => {
@@ -294,7 +314,7 @@ const FocusTimer: React.FC = () => {
             ) : (
                 <Button shape="circle" icon={<PauseCircleOutlined />} size="large" style={{ width: 80, height: 80, fontSize: 32 }} onClick={handlePause} />
             )}
-            <Button danger shape="circle" icon={<StopOutlined />} size="large" style={{ width: 80, height: 80, fontSize: 32 }} onClick={handleStop} disabled={!startTimeRef.current} />
+            <Button danger shape="circle" icon={<StopOutlined />} size="large" style={{ width: 80, height: 80, fontSize: 32 }} onClick={handleStop} disabled={!hasStarted} />
         </Space>
 
         <Button

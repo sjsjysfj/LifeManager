@@ -126,6 +126,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = React.memo(({ tasks, onEdit, onDra
 
 type TaskTableProps = {
   tasks: Task[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   columns: any[];
 };
 
@@ -326,7 +327,7 @@ const TaskManager: React.FC = () => {
     {
       title: '操作',
       key: 'action',
-      render: (_: any, record: Task) => (
+      render: (_: unknown, record: Task) => (
         <Space size="middle">
           <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
           <Popconfirm title="确定删除吗?" onConfirm={() => handleDelete(record.id)}>

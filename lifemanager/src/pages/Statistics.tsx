@@ -32,7 +32,7 @@ const Statistics: React.FC = () => {
         minutes: totalMinutes
       };
     });
-  }, [data?.focusLogs, last7Days]);
+  }, [data, last7Days]);
 
   const habitData = useMemo(() => {
     if (!data) return [];
@@ -53,17 +53,17 @@ const Statistics: React.FC = () => {
         rate: count > 0 ? Math.round(totalPercent / count) : 0
       };
     });
-  }, [data?.habitLogs, data?.habits, last7Days]);
+  }, [data, last7Days]);
 
   const totalFocusAllTime = useMemo(() => {
     if (!data) return 0;
     return data.focusLogs.reduce((acc, cur) => acc + cur.duration, 0);
-  }, [data?.focusLogs]);
+  }, [data]);
 
   const totalCompletedTasks = useMemo(() => {
     if (!data) return 0;
     return data.tasks.filter(t => t.status === 'done').length;
-  }, [data?.tasks]);
+  }, [data]);
 
   if (!data) return <div>Loading...</div>;
 

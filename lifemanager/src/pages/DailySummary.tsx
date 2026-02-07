@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Card, Col, Row, Typography, Checkbox, Progress, Button, List, message, Statistic } from 'antd';
+import { Card, Col, Row, Typography, Checkbox, Progress, Button, List, message, Statistic, Divider } from 'antd';
 import { SmileOutlined, CheckCircleOutlined, ClockCircleOutlined, ExportOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import 'dayjs/locale/zh-cn';
@@ -31,44 +31,11 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
   const journalsUpdateTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isProcessingRef = useRef(false);
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  useEffect(() => {
-    dataRef.current = data;
-  }, [data]);
-
-  useEffect(() => {
-    return () => {
-      if (journalsUpdateTimer.current) {
-        clearTimeout(journalsUpdateTimer.current);
-        journalsUpdateTimer.current = null;
-        const latestData = dataRef.current;
-        if (latestData) {
-          void updateDB('journals', latestData.journals);
-        }
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-      const handleFocus = () => {
-          // Don't refresh if we're in the middle of processing
-          if (isProcessingRef.current) return;
-          fetchData();
-      };
-      window.addEventListener('focus', handleFocus);
-      return () => {
-          window.removeEventListener('focus', handleFocus);
-      };
-  }, []);
-
-  const fetchData = async () => {
+  const fetchData = React.useCallback(async () => {
     try {
       setLoading(true);
       const dbData = await getDB();
-      let updatedData = { ...dbData };
+      const updatedData = { ...dbData };
       let needsUpdate = false;
 
       // 1. Initialize today's journal if not exists
@@ -80,7 +47,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
         if (yesterdayJournal?.tomorrowPlan) {
             // Split by newline and filter empty lines, remove markdown chars
             const lines = yesterdayJournal.tomorrowPlan
-                .split(new RegExp('\r?\n'))
+                .split(/\r?\n/)
                 .filter((line: string) => line.trim())
                 .map((line: string) => line.replace(/^(\s*[-*+]|\s*\d+\.)\s+/, '').replace(/\[[ x]\]/i, '').trim()) // simple markdown list cleanup
                 .filter((line: string) => line); // filter out empty lines after cleanup
@@ -129,7 +96,40 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [today]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  useEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  useEffect(() => {
+    return () => {
+      if (journalsUpdateTimer.current) {
+        clearTimeout(journalsUpdateTimer.current);
+        journalsUpdateTimer.current = null;
+        const latestData = dataRef.current;
+        if (latestData) {
+          void updateDB('journals', latestData.journals);
+        }
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const handleFocus = () => {
+        // Don't refresh if we're in the middle of processing
+        if (isProcessingRef.current) return;
+        fetchData();
+    };
+    window.addEventListener('focus', handleFocus);
+    return () => {
+        window.removeEventListener('focus', handleFocus);
+    };
+  }, [fetchData]);
 
   const scheduleJournalsUpdate = (nextJournals: DBData['journals']) => {
     if (journalsUpdateTimer.current) {
@@ -194,7 +194,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
     const updatedTasks = data.tasks.map(t =>
       t.id === taskId ? { ...t, status: checked ? 'done' : 'todo' } : t
     );
-    // @ts-ignore
+    // @ts-expect-error We know data is not null here, but TypeScript might need help
     setData({ ...data, tasks: updatedTasks });
     await updateDB('tasks', updatedTasks);
   };
@@ -221,12 +221,12 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
     return data.tasks.filter(t => {
       return t.planDate === today || t.dueDate === today;
     });
-  }, [data?.tasks, today]);
+  }, [data, today]);
 
   const todayFocusLogs = useMemo(() => {
     if (!data) return [];
     return data.focusLogs.filter(l => l.date === today);
-  }, [data?.focusLogs, today]);
+  }, [data, today]);
 
   const totalFocusTime = useMemo(() => {
     return todayFocusLogs.reduce((acc, cur) => acc + cur.duration, 0);
@@ -245,7 +245,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
 
       <Row gutter={[16, 16]}>
         {/* Column 1: 今日学习 */}
-        <Col span={5} xs={24} sm={12} md={8} lg={5}>
+        <Col span={6} xs={24} sm={12} md={8} lg={6}>
           <Card title={<><ClockCircleOutlined /> 今日学习</>} style={{ height: '100%' }}>
              <div style={{ textAlign: 'center', marginBottom: 20 }}>
                 <Statistic title="专注时长 (分钟)" value={totalFocusTime} suffix="min" />
@@ -264,7 +264,7 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
         </Col>
 
         {/* Column 2: 今日生活 */}
-        <Col span={5} xs={24} sm={12} md={8} lg={5}>
+        <Col span={6} xs={24} sm={12} md={8} lg={6}>
           <Card title={<><SmileOutlined /> 今日生活</>} style={{ height: '100%' }} bodyStyle={{ padding: 0, overflow: 'hidden' }}>
             <MarkdownEditor
                 value={data.journals[today]?.lifeLog || ''}
@@ -276,32 +276,12 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
           </Card>
         </Col>
 
-        {/* Column 3: 今日计划完成 */}
-        <Col span={5} xs={24} sm={12} md={8} lg={5}>
-          <Card title={<><CheckCircleOutlined /> 今日计划</>} style={{ height: '100%' }}>
+        {/* Column 3: 今日计划 (包含每日打卡) */}
+        <Col span={6} xs={24} sm={12} md={8} lg={6}>
+          <Card title={<><CheckCircleOutlined /> 今日计划</>} style={{ height: '100%', display: 'flex', flexDirection: 'column' }} bodyStyle={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+             <div style={{ flex: 1, overflowY: 'auto' }}>
+             <Divider titlePlacement="left" plain style={{ marginTop: 0 }}>每日打卡</Divider>
              <List
-                dataSource={displayTasks}
-                renderItem={item => (
-                    <List.Item>
-                        <Checkbox
-                            checked={item.status === 'done'}
-                            onChange={e => handleTaskCheck(item.id, e.target.checked)}
-                        >
-                            <span style={{ textDecoration: item.status === 'done' ? 'line-through' : 'none', color: item.status === 'done' ? '#999' : 'inherit' }}>
-                                {item.title}
-                            </span>
-                        </Checkbox>
-                    </List.Item>
-                )}
-             />
-             {displayTasks.length === 0 && <Button type="dashed" block size="small" onClick={() => onNavigate?.('2')}>添加任务 (去任务管理)</Button>}
-          </Card>
-        </Col>
-
-        {/* Column 4: 每日打卡 */}
-        <Col span={4} xs={24} sm={12} md={8} lg={4}>
-          <Card title="每日打卡" style={{ height: '100%' }}>
-            <List
                 dataSource={data.habits}
                 renderItem={(item: Habit) => {
                     const current = data.habitLogs[today]?.[item.id] || 0;
@@ -317,11 +297,30 @@ const DailySummary: React.FC<DailySummaryProps> = ({ onNavigate }) => {
                     );
                 }}
             />
+            
+            <Divider titlePlacement="left" plain>待办事项</Divider>
+             <List
+                dataSource={displayTasks}
+                renderItem={item => (
+                    <List.Item>
+                        <Checkbox
+                            checked={item.status === 'done'}
+                            onChange={e => handleTaskCheck(item.id, e.target.checked)}
+                        >
+                            <span style={{ textDecoration: item.status === 'done' ? 'line-through' : 'none', color: item.status === 'done' ? '#999' : 'inherit' }}>
+                                {item.title}
+                            </span>
+                        </Checkbox>
+                    </List.Item>
+                )}
+             />
+             </div>
+             {displayTasks.length === 0 && <Button type="dashed" block size="small" onClick={() => onNavigate?.('2')} style={{ marginTop: 10 }}>添加任务 (去任务管理)</Button>}
           </Card>
         </Col>
 
         {/* Column 5: 明日计划 */}
-        <Col span={5} xs={24} sm={12} md={8} lg={5}>
+        <Col span={6} xs={24} sm={12} md={8} lg={6}>
           <Card title="明日计划" style={{ height: '100%' }} bodyStyle={{ padding: 0, overflow: 'hidden' }}>
             <MarkdownEditor
                 value={data.journals[today]?.tomorrowPlan || ''}
