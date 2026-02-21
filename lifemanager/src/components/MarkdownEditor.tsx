@@ -1,12 +1,10 @@
 import React from 'react';
-import MDEditor from '@uiw/react-md-editor';
-import rehypeSanitize from 'rehype-sanitize';
+import BlockEditor from './BlockEditor/BlockEditor';
 
-// Create a wrapper for styling purposes if needed
 interface MarkdownEditorProps {
   value: string;
   onChange: (value?: string) => void;
-  height?: number;
+  height?: number | string;
   preview?: 'live' | 'edit' | 'preview';
   placeholder?: string;
 }
@@ -18,23 +16,24 @@ const MarkdownEditor: React.FC<MarkdownEditorProps> = ({
   preview = 'live',
   placeholder 
 }) => {
-  // We can add custom styles or configuration here
-  // For now, basic integration
-  
+  // If preview is 'preview', we set readOnly to true
+  // Note: 'live' and 'edit' both mean editable in our WYSIWYG editor
+  const readOnly = preview === 'preview';
+
+  const handleChange = (newValue: string) => {
+    onChange(newValue);
+  };
+
   return (
-    <div className="markdown-editor-container" data-color-mode="light">
-      <MDEditor
-        value={value}
-        onChange={onChange}
-        height={height}
-        preview={preview}
-        textareaProps={{
-          placeholder: placeholder
-        }}
-        previewOptions={{
-          rehypePlugins: [[rehypeSanitize]],
-        }}
-        visibleDragbar={false}
+    <div 
+      className="markdown-editor-container" 
+      data-color-mode="light"
+      style={{ height: typeof height === 'number' ? `${height}px` : height }}
+    >
+      <BlockEditor
+        value={value || ''}
+        onChange={handleChange}
+        readOnly={readOnly}
       />
     </div>
   );

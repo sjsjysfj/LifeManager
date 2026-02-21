@@ -13,7 +13,9 @@ import {
   Card,
   message,
   Popconfirm,
-  Checkbox
+  Checkbox,
+  Tooltip,
+  Avatar
 } from 'antd';
 import {
   PlusOutlined,
@@ -21,7 +23,9 @@ import {
   EditOutlined,
   UnorderedListOutlined,
   AppstoreOutlined,
-  BarChartOutlined
+  BarChartOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons';
 import { DragDropContext, Droppable, Draggable, type DropResult } from '@hello-pangea/dnd';
 import dayjs from 'dayjs';
@@ -41,9 +45,9 @@ type TaskKanbanProps = {
 
 const TaskKanban: React.FC<TaskKanbanProps> = React.memo(({ tasks, onEdit, onDragEnd }) => {
   const columns = useMemo(() => ([
-    { id: 'todo' as TaskStatus, title: '待办 (To Do)' },
-    { id: 'in_progress' as TaskStatus, title: '进行中 (In Progress)' },
-    { id: 'done' as TaskStatus, title: '已完成 (Done)' },
+    { id: 'todo' as TaskStatus, title: '待办 (To Do)', color: '#f59e0b' },
+    { id: 'in_progress' as TaskStatus, title: '进行中 (In Progress)', color: '#3b82f6' },
+    { id: 'done' as TaskStatus, title: '已完成 (Done)', color: '#10b981' },
   ]), []);
 
   const tasksByStatus = useMemo(() => {
@@ -60,7 +64,7 @@ const TaskKanban: React.FC<TaskKanbanProps> = React.memo(({ tasks, onEdit, onDra
 
   return (
     <DragDropContext onDragEnd={onDragEnd}>
-      <div style={{ display: 'flex', gap: '20px', overflowX: 'auto', paddingBottom: 10 }}>
+      <div style={{ display: 'flex', gap: '24px', height: '100%', overflowX: 'auto', paddingBottom: 10 }}>
         {columns.map(col => (
           <Droppable key={col.id} droppableId={col.id}>
             {(provided, snapshot) => (
@@ -68,53 +72,78 @@ const TaskKanban: React.FC<TaskKanbanProps> = React.memo(({ tasks, onEdit, onDra
                 ref={provided.innerRef}
                 {...provided.droppableProps}
                 style={{
-                  background: snapshot.isDraggingOver ? '#e6f7ff' : '#f5f5f5',
-                  padding: 10,
-                  width: 300,
-                  minWidth: 300,
-                  borderRadius: 8,
-                  minHeight: 400
+                  background: snapshot.isDraggingOver ? '#f3f4f6' : '#f9fafb',
+                  padding: 16,
+                  width: 320,
+                  minWidth: 320,
+                  borderRadius: 16,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  height: '100%',
+                  border: '1px solid #e5e7eb'
                 }}
               >
-                <h3 style={{ marginBottom: 16, textAlign: 'center' }}>{col.title}</h3>
-                {tasksByStatus[col.id].map((task, index) => (
-                  <Draggable key={task.id} draggableId={task.id} index={index}>
-                    {(provided, snapshot) => (
-                      <div
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                        style={{
-                          userSelect: 'none',
-                          marginBottom: 8,
-                          ...provided.draggableProps.style,
-                        }}
-                      >
-                        <Card
-                          size="small"
-                          title={task.title}
-                          extra={
-                            <Button
-                              type="text"
-                              size="small"
-                              icon={<EditOutlined />}
-                              onClick={() => onEdit(task)}
-                            />
-                          }
-                          style={{
-                            boxShadow: snapshot.isDragging ? '0 4px 8px rgba(0,0,0,0.1)' : 'none',
-                          }}
+                <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span style={{ fontWeight: 600, fontSize: 16, color: '#374151' }}>{col.title}</span>
+                    <Tag color={col.color} style={{ borderRadius: 10, margin: 0 }}>{tasksByStatus[col.id].length}</Tag>
+                </div>
+                
+                <div style={{ flex: 1, overflowY: 'auto', paddingRight: 4 }}>
+                    {tasksByStatus[col.id].map((task, index) => (
+                    <Draggable key={task.id} draggableId={task.id} index={index}>
+                        {(provided, snapshot) => (
+                        <div
+                            ref={provided.innerRef}
+                            {...provided.draggableProps}
+                            {...provided.dragHandleProps}
+                            style={{
+                            userSelect: 'none',
+                            marginBottom: 12,
+                            ...provided.draggableProps.style,
+                            }}
                         >
-                          <Tag color={task.type === 'study' ? 'blue' : task.type === 'habit' ? 'green' : 'orange'}>
-                            {task.type === 'study' ? '学习' : task.type === 'habit' ? '习惯' : '生活'}
-                          </Tag>
-                          <span style={{ fontSize: 12, color: '#888', marginLeft: 8 }}>{task.dueDate}</span>
-                        </Card>
-                      </div>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
+                            <Card
+                            size="small"
+                            bordered={false}
+                            style={{
+                                boxShadow: snapshot.isDragging ? '0 10px 25px rgba(0,0,0,0.1)' : '0 2px 5px rgba(0,0,0,0.02)',
+                                borderRadius: 12,
+                                transition: 'all 0.2s',
+                                cursor: 'grab'
+                            }}
+                            styles={{ body: { padding: 16 } }}
+                            >
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+                                    <Tag color={task.type === 'study' ? 'blue' : task.type === 'habit' ? 'green' : 'orange'} style={{ borderRadius: 4, marginRight: 0 }}>
+                                        {task.type === 'study' ? '学习' : task.type === 'habit' ? '习惯' : '生活'}
+                                    </Tag>
+                                    <Button
+                                        type="text"
+                                        size="small"
+                                        icon={<EditOutlined />}
+                                        onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                                        style={{ color: '#9ca3af' }}
+                                    />
+                                </div>
+                                <div style={{ fontWeight: 500, fontSize: 15, marginBottom: 12, color: '#1f2937' }}>{task.title}</div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, color: '#6b7280' }}>
+                                    <Space size={4}>
+                                        <CalendarOutlined />
+                                        <span>{task.dueDate}</span>
+                                    </Space>
+                                    {task.isDailyPlan && (
+                                        <Tooltip title="今日计划">
+                                            <CheckCircleOutlined style={{ color: '#10b981' }} />
+                                        </Tooltip>
+                                    )}
+                                </div>
+                            </Card>
+                        </div>
+                        )}
+                    </Draggable>
+                    ))}
+                    {provided.placeholder}
+                </div>
               </div>
             )}
           </Droppable>
@@ -131,7 +160,16 @@ type TaskTableProps = {
 };
 
 const TaskTable: React.FC<TaskTableProps> = React.memo(({ tasks, columns }) => {
-  return <Table dataSource={tasks} columns={columns} rowKey="id" />;
+  return (
+      <Card styles={{ body: { padding: 0 } }} style={{ borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 15px rgba(0,0,0,0.02)', border: 'none' }}>
+        <Table 
+            dataSource={tasks} 
+            columns={columns} 
+            rowKey="id" 
+            pagination={{ pageSize: 10 }}
+        />
+      </Card>
+  );
 });
 
 const TaskManager: React.FC = () => {
@@ -298,13 +336,14 @@ const TaskManager: React.FC = () => {
       title: '标题',
       dataIndex: 'title',
       key: 'title',
+      render: (text: string) => <span style={{ fontWeight: 500 }}>{text}</span>
     },
     {
       title: '类型',
       dataIndex: 'type',
       key: 'type',
       render: (type: string) => (
-        <Tag color={type === 'study' ? 'blue' : type === 'habit' ? 'green' : 'orange'}>
+        <Tag color={type === 'study' ? 'blue' : type === 'habit' ? 'green' : 'orange'} style={{ borderRadius: 10 }}>
           {type === 'study' ? '学习' : type === 'habit' ? '习惯' : '生活'}
         </Tag>
       ),
@@ -316,22 +355,27 @@ const TaskManager: React.FC = () => {
       render: (status: string) => {
           const color = status === 'done' ? 'success' : status === 'in_progress' ? 'processing' : 'default';
           const text = status === 'done' ? '已完成' : status === 'in_progress' ? '进行中' : '待办';
-          return <Tag color={color}>{text}</Tag>;
+          return <Tag color={color} style={{ borderRadius: 10 }}>{text}</Tag>;
       }
     },
     {
       title: '截止日期',
       dataIndex: 'dueDate',
       key: 'dueDate',
+      render: (date: string) => <span style={{ color: '#6b7280' }}>{date}</span>
     },
     {
       title: '操作',
       key: 'action',
       render: (_: unknown, record: Task) => (
         <Space size="middle">
-          <Button icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          <Tooltip title="编辑">
+            <Button type="text" icon={<EditOutlined />} onClick={() => handleEdit(record)} />
+          </Tooltip>
           <Popconfirm title="确定删除吗?" onConfirm={() => handleDelete(record.id)}>
-            <Button icon={<DeleteOutlined />} danger />
+             <Tooltip title="删除">
+                <Button type="text" icon={<DeleteOutlined />} danger />
+             </Tooltip>
           </Popconfirm>
         </Space>
       ),
@@ -339,8 +383,8 @@ const TaskManager: React.FC = () => {
   ]), [handleEdit, handleDelete]);
 
   return (
-    <div style={{ padding: 24 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 24, alignItems: 'center' }}>
         <Tabs
             activeKey={activeTab}
             onChange={setActiveTab}
@@ -349,15 +393,30 @@ const TaskManager: React.FC = () => {
                 { key: 'kanban', label: <span><AppstoreOutlined />看板视图</span> },
                 { key: 'gantt', label: <span><BarChartOutlined />甘特图 (Alpha)</span> },
             ]}
+            style={{ marginBottom: -16 }} // Adjust for Tab's default margin
         />
-        <Button type="primary" icon={<PlusOutlined />} onClick={handleAdd}>
+        <Button 
+            type="primary" 
+            icon={<PlusOutlined />} 
+            onClick={handleAdd}
+            style={{ borderRadius: 8, height: 40, padding: '0 20px' }}
+        >
           新建任务
         </Button>
       </div>
 
-      {activeTab === 'table' && <TaskTable tasks={tasks} columns={columns} />}
-      {activeTab === 'kanban' && <TaskKanban tasks={tasks} onEdit={handleEdit} onDragEnd={onDragEnd} />}
-      {activeTab === 'gantt' && <div style={{textAlign: 'center', marginTop: 50}}>甘特图功能开发中...</div>}
+      <div style={{ flex: 1, overflow: 'hidden' }}>
+        {activeTab === 'table' && <TaskTable tasks={tasks} columns={columns} />}
+        {activeTab === 'kanban' && <TaskKanban tasks={tasks} onEdit={handleEdit} onDragEnd={onDragEnd} />}
+        {activeTab === 'gantt' && (
+            <Card style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <div style={{ textAlign: 'center' }}>
+                    <BarChartOutlined style={{ fontSize: 48, color: '#e5e7eb', marginBottom: 16 }} />
+                    <div style={{ color: '#9ca3af' }}>甘特图功能开发中...</div>
+                </div>
+            </Card>
+        )}
+      </div>
 
       <Modal
         title={editingTask ? '编辑任务' : '新建任务'}
@@ -365,11 +424,38 @@ const TaskManager: React.FC = () => {
         onOk={handleOk}
         onCancel={() => setIsModalVisible(false)}
         width={800}
+        style={{ top: 40 }}
+        styles={{ body: { padding: 24 } }}
       >
         <Form form={form} layout="vertical">
           <Form.Item name="title" label="任务名称" rules={[{ required: true, message: '请输入任务名称' }]}>
-            <Input />
+            <Input size="large" placeholder="要做什么？" />
           </Form.Item>
+          
+          <div style={{ display: 'flex', gap: 16 }}>
+              <Form.Item name="type" label="类型" initialValue="study" style={{ flex: 1 }}>
+                <Select size="large">
+                  <Option value="study">学习</Option>
+                  <Option value="life">生活</Option>
+                  <Option value="habit">习惯</Option>
+                </Select>
+              </Form.Item>
+              <Form.Item name="status" label="状态" initialValue="todo" style={{ flex: 1 }}>
+                 <Select size="large">
+                  <Option value="todo">待办</Option>
+                  <Option value="in_progress">进行中</Option>
+                  <Option value="done">已完成</Option>
+                </Select>
+              </Form.Item>
+              <Form.Item name="dueDate" label="截止日期" rules={[{ required: true, message: '请选择日期' }]} style={{ flex: 1 }}>
+                <DatePicker style={{ width: '100%' }} size="large" />
+              </Form.Item>
+          </div>
+          
+          <Form.Item name="isDailyPlan" valuePropName="checked" initialValue={false}>
+             <Checkbox>加入今日计划</Checkbox>
+          </Form.Item>
+          
           <Form.Item label="任务描述 (Markdown)">
             <MarkdownEditor
                 value={description}
@@ -377,26 +463,6 @@ const TaskManager: React.FC = () => {
                 height={300}
                 preview="edit"
             />
-          </Form.Item>
-          <Form.Item name="type" label="类型" initialValue="study">
-            <Select>
-              <Option value="study">学习</Option>
-              <Option value="life">生活</Option>
-              <Option value="habit">习惯</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="status" label="状态" initialValue="todo">
-             <Select>
-              <Option value="todo">待办</Option>
-              <Option value="in_progress">进行中</Option>
-              <Option value="done">已完成</Option>
-            </Select>
-          </Form.Item>
-          <Form.Item name="dueDate" label="截止日期" rules={[{ required: true, message: '请选择日期' }]}>
-            <DatePicker style={{ width: '100%' }} />
-          </Form.Item>
-           <Form.Item name="isDailyPlan" valuePropName="checked" initialValue={false}>
-             <Checkbox>加入今日计划</Checkbox>
           </Form.Item>
         </Form>
       </Modal>

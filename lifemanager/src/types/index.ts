@@ -35,6 +35,7 @@ export interface FocusLog {
   duration: number; // minutes
   tag: string;
   content?: string; // Markdown supported
+  isConcurrent?: boolean; // Whether this task overlaps with others (allowed by user)
 }
 
 export interface DailyJournal {

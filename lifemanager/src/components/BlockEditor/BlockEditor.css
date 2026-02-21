@@ -1,0 +1,101 @@
+.block-editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: white;
+  border-radius: 8px;
+}
+
+.block-editor-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+  /* Prevent horizontal scroll */
+  overflow-x: hidden;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.block-item {
+  margin-bottom: 4px;
+  position: relative;
+  /* Ensure it takes full width but respects padding */
+  width: 100%;
+}
+
+.block-content {
+  outline: none;
+  min-height: 24px;
+  line-height: 1.6;
+  /* Text wrapping */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: break-word;
+  max-width: 100%;
+}
+
+/* Placeholder - Only show for headings or if explicitly needed, remove for P to avoid noise */
+.block-content[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  color: #ccc;
+  pointer-events: none;
+  font-style: italic;
+}
+
+/* Typography */
+.block-h1 {
+  font-size: 2em;
+  font-weight: bold;
+  margin-top: 16px;
+  margin-bottom: 8px;
+}
+
+.block-h2 {
+  font-size: 1.5em;
+  font-weight: bold;
+  margin-top: 12px;
+  margin-bottom: 6px;
+}
+
+.block-h3 {
+  font-size: 1.17em;
+  font-weight: bold;
+  margin-top: 8px;
+  margin-bottom: 4px;
+}
+
+.block-p {
+  font-size: 1em;
+}
+
+/* Lists */
+.ul-block span {
+  font-size: 1.5em;
+  line-height: 1;
+  margin-top: -2px; 
+}
+
+.ol-block span {
+  font-weight: 500;
+  color: #666;
+}
+
+/* Checkbox */
+.checkbox-block input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 4px;
+  cursor: pointer;
+  flex-shrink: 0; /* Prevent shrinking */
+}
+
+/* Image */
+.image-block {
+  text-align: center;
+  padding: 8px;
+}
+
+.focused-image {
+  box-shadow: 0 0 0 2px #1890ff;
+}

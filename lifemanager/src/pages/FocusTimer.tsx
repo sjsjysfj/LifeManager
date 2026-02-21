@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Space, Radio, InputNumber, Input, message, Modal, Form, DatePicker, TimePicker } from 'antd';
-import { PlayCircleOutlined, PauseCircleOutlined, StopOutlined, FullscreenOutlined, FullscreenExitOutlined, PlusCircleOutlined } from '@ant-design/icons';
+import { Button, Space, Radio, InputNumber, Input, message, Modal, Form, DatePicker, TimePicker, Card, Typography } from 'antd';
+import { PlayCircleFilled, PauseCircleFilled, StopFilled, FullscreenOutlined, FullscreenExitOutlined, PlusCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { v4 as uuidv4 } from 'uuid';
 import { getDB, updateDB } from '../services/db';
 import type { FocusLog } from '../types';
-import MarkdownEditor from '../components/MarkdownEditor';
+import SupplementaryFocusModal from '../components/SupplementaryFocusModal';
+
+const { Title, Text } = Typography;
 
 const FocusTimer: React.FC = () => {
   // Mode: 'pomodoro' (25min), 'custom' (countdown), 'stopwatch' (count up)
@@ -19,8 +21,6 @@ const FocusTimer: React.FC = () => {
   
   // Manual Add Modal State
   const [isManualModalVisible, setIsManualModalVisible] = useState(false);
-  const [manualForm] = Form.useForm();
-  const [manualContent, setManualContent] = useState('');
 
   const [hasStarted, setHasStarted] = useState(false);
 
@@ -157,6 +157,8 @@ const FocusTimer: React.FC = () => {
     Modal.confirm({
       title: '结束专注?',
       content: '确定要结束当前的专注计时吗？这将保存当前的记录。',
+      okText: '确定结束',
+      cancelText: '继续',
       onOk: () => {
         saveRecord();
         resetTimer();
@@ -182,36 +184,6 @@ const FocusTimer: React.FC = () => {
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
-  const handleManualAdd = async () => {
-    try {
-      const values = await manualForm.validateFields();
-      const date = values.date.format('YYYY-MM-DD');
-      const startTime = values.startTime.format('HH:mm');
-      // endTime is optional or calculated
-      const endTime = values.endTime ? values.endTime.format('HH:mm') : dayjs(values.startTime).add(values.duration, 'minute').format('HH:mm');
-      
-      const newLog: FocusLog = {
-        id: uuidv4(),
-        date: date,
-        startTime: startTime,
-        endTime: endTime,
-        duration: values.duration,
-        tag: values.tag,
-        content: manualContent
-      };
-
-      const dbData = await getDB();
-      const updatedLogs = [...dbData.focusLogs, newLog];
-      await updateDB('focusLogs', updatedLogs);
-      message.success('学习记录添加成功');
-      setIsManualModalVisible(false);
-      manualForm.resetFields();
-      setManualContent('');
-    } catch (error) {
-      console.error('Validation failed:', error);
-    }
-  };
-
   return (
     <div style={{
         height: '100%',
@@ -219,113 +191,200 @@ const FocusTimer: React.FC = () => {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24,
         background: isFullScreen ? '#000' : 'transparent',
         color: isFullScreen ? '#fff' : 'inherit',
         transition: 'all 0.3s',
         position: 'relative' // For absolute positioning of manual add button
     }}>
       {!isFullScreen && (
-          <Button 
-            icon={<PlusCircleOutlined />} 
-            onClick={() => setIsManualModalVisible(true)}
-            style={{ position: 'absolute', top: 20, left: 20 }}
-          >
-            补录记录
-          </Button>
+          <div style={{ position: 'absolute', top: 0, right: 0 }}>
+              <Button 
+                type="dashed"
+                icon={<PlusCircleOutlined />} 
+                onClick={() => setIsManualModalVisible(true)}
+              >
+                补录记录
+              </Button>
+          </div>
       )}
 
-      <Modal
-        title="手动添加学习记录"
-        open={isManualModalVisible}
-        onOk={handleManualAdd}
+      <SupplementaryFocusModal
+        visible={isManualModalVisible}
         onCancel={() => setIsManualModalVisible(false)}
-        width={800}
+        onSuccess={() => setIsManualModalVisible(false)}
+      />
+
+      <Card 
+        bordered={false} 
+        style={{ 
+            width: isFullScreen ? '100%' : '100%', 
+            maxWidth: isFullScreen ? 'none' : 600,
+            background: isFullScreen ? 'transparent' : '#fff',
+            boxShadow: isFullScreen ? 'none' : '0 10px 40px rgba(0,0,0,0.05)',
+            borderRadius: 24,
+            textAlign: 'center'
+        }}
+        styles={{ body: { padding: isFullScreen ? 0 : 40 } }}
       >
-        <Form form={manualForm} layout="vertical" initialValues={{ date: dayjs(), duration: 30, tag: '自主学习' }}>
-            <div style={{ display: 'flex', gap: 16 }}>
-                <Form.Item name="date" label="日期" rules={[{ required: true }]}>
-                    <DatePicker />
-                </Form.Item>
-                <Form.Item name="startTime" label="开始时间" rules={[{ required: true }]}>
-                    <TimePicker format="HH:mm" />
-                </Form.Item>
-                <Form.Item name="endTime" label="结束时间">
-                    <TimePicker format="HH:mm" />
-                </Form.Item>
-            </div>
-            <div style={{ display: 'flex', gap: 16 }}>
-                <Form.Item name="duration" label="时长(分钟)" rules={[{ required: true }]}>
-                    <InputNumber min={1} />
-                </Form.Item>
-                <Form.Item name="tag" label="标签" rules={[{ required: true }]} style={{ flex: 1 }}>
-                    <Input />
-                </Form.Item>
-            </div>
-            <Form.Item label="学习内容/笔记 (Markdown)">
-                <MarkdownEditor 
-                    value={manualContent} 
-                    onChange={(val) => setManualContent(val || '')}
-                    height={300}
-                />
-            </Form.Item>
-        </Form>
-      </Modal>
-
-      <Space direction="vertical" align="center" size="large">
-        {!isActive && !isFullScreen && (
-            <Radio.Group value={mode} onChange={e => setMode(e.target.value)} buttonStyle="solid">
-                <Radio.Button value="pomodoro">番茄钟 (25m)</Radio.Button>
-                <Radio.Button value="custom">自定义倒计时</Radio.Button>
-                <Radio.Button value="stopwatch">正计时</Radio.Button>
-            </Radio.Group>
-        )}
-
-        {mode === 'custom' && !isActive && !isFullScreen && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span>设置时长(分): </span>
-                <InputNumber min={1} max={180} value={customMinutes} onChange={v => setCustomMinutes(v || 25)} />
-            </div>
-        )}
-
-        {!isActive && !isFullScreen && (
-             <Input
-                prefix="🏷️"
-                placeholder="专注内容 (如: 学习React)"
-                value={tag}
-                onChange={e => setTag(e.target.value)}
-                style={{ width: 300, textAlign: 'center' }}
-             />
-        )}
-
-        <div style={{
-            fontSize: isFullScreen ? '15vw' : '8rem',
-            fontFamily: 'monospace',
-            fontWeight: 'bold',
-            lineHeight: 1,
-            color: isFullScreen ? '#fff' : '#1890ff'
-        }}>
-            {formatTime(time)}
-        </div>
-
-        <Space size="large">
-            {!isActive ? (
-                <Button type="primary" shape="circle" icon={<PlayCircleOutlined />} size="large" style={{ width: 80, height: 80, fontSize: 32 }} onClick={handleStart} />
-            ) : (
-                <Button shape="circle" icon={<PauseCircleOutlined />} size="large" style={{ width: 80, height: 80, fontSize: 32 }} onClick={handlePause} />
+        <Space direction="vertical" align="center" size="large" style={{ width: '100%' }}>
+            {!isFullScreen && (
+                <div style={{ marginBottom: 20 }}>
+                    <Title level={3} style={{ marginBottom: 0 }}>
+                        <ClockCircleOutlined style={{ marginRight: 10, color: '#6366f1' }} />
+                        专注时刻
+                    </Title>
+                    <Text type="secondary">保持专注，成就更好的自己</Text>
+                </div>
             )}
-            <Button danger shape="circle" icon={<StopOutlined />} size="large" style={{ width: 80, height: 80, fontSize: 32 }} onClick={handleStop} disabled={!hasStarted} />
-        </Space>
 
-        <Button
-            type="text"
-            icon={isFullScreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
-            onClick={toggleFullScreen}
-            style={{ position: 'fixed', top: 20, right: 20, color: isFullScreen ? '#fff' : 'inherit' }}
-        >
-            {isFullScreen ? '退出全屏' : '全屏模式'}
-        </Button>
-      </Space>
+            {!isActive && (
+                <div style={{ 
+                    padding: isFullScreen ? '10px 20px' : 0,
+                    background: isFullScreen ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    borderRadius: isFullScreen ? 30 : 0
+                }}>
+                    <Radio.Group 
+                        value={mode} 
+                        onChange={e => setMode(e.target.value)} 
+                        buttonStyle="solid" 
+                        size="large"
+                        className={isFullScreen ? 'dark-mode-radio' : ''}
+                    >
+                        <Radio.Button value="pomodoro">番茄钟 (25m)</Radio.Button>
+                        <Radio.Button value="custom">自定义</Radio.Button>
+                        <Radio.Button value="stopwatch">正计时</Radio.Button>
+                    </Radio.Group>
+                </div>
+            )}
+
+            {mode === 'custom' && !isActive && (
+                <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 10, 
+                    background: isFullScreen ? 'rgba(255,255,255,0.1)' : '#f9fafb', 
+                    padding: '10px 20px', 
+                    borderRadius: 12,
+                    color: isFullScreen ? '#fff' : 'inherit'
+                }}>
+                    <span>设置时长(分): </span>
+                    <InputNumber 
+                        min={1} 
+                        max={180} 
+                        value={customMinutes} 
+                        onChange={v => setCustomMinutes(v || 25)} 
+                        bordered={false}
+                        style={{ background: isFullScreen ? 'rgba(255,255,255,0.2)' : 'white', borderRadius: 6, width: 60, color: isFullScreen ? 'white' : 'inherit' }}
+                    />
+                </div>
+            )}
+
+            {!isActive && !isFullScreen && (
+                <Input
+                    prefix={<span style={{ fontSize: 16 }}>🏷️</span>}
+                    placeholder="专注内容 (如: 学习React)"
+                    value={tag}
+                    onChange={e => setTag(e.target.value)}
+                    style={{ 
+                        width: 300, 
+                        textAlign: 'center', 
+                        borderRadius: 20, 
+                        padding: '8px 20px',
+                        fontSize: 16,
+                        border: '1px solid #e5e7eb',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.02)'
+                    }}
+                    bordered={false}
+                />
+            )}
+
+            <div style={{
+                fontSize: isFullScreen ? '20vw' : '7rem',
+                fontFamily: "'JetBrains Mono', 'Roboto Mono', monospace",
+                fontWeight: 700,
+                lineHeight: 1,
+                color: isFullScreen ? '#fff' : '#4f46e5',
+                margin: '20px 0',
+                textShadow: isFullScreen ? '0 0 20px rgba(0,0,0,0.5)' : 'none',
+                fontVariantNumeric: 'tabular-nums'
+            }}>
+                {formatTime(time)}
+            </div>
+
+            <Space size={32}>
+                {!isActive ? (
+                    <Button 
+                        type="primary" 
+                        shape="circle" 
+                        icon={<PlayCircleFilled />} 
+                        size="large" 
+                        style={{ 
+                            width: 80, 
+                            height: 80, 
+                            fontSize: 32, 
+                            boxShadow: '0 10px 20px rgba(79, 70, 229, 0.3)',
+                            background: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                            border: 'none'
+                        }} 
+                        onClick={handleStart} 
+                    />
+                ) : (
+                    <Button 
+                        shape="circle" 
+                        icon={<PauseCircleFilled />} 
+                        size="large" 
+                        style={{ 
+                            width: 80, 
+                            height: 80, 
+                            fontSize: 32,
+                            background: '#f3f4f6',
+                            color: '#4b5563',
+                            border: 'none'
+                        }} 
+                        onClick={handlePause} 
+                    />
+                )}
+                <Button 
+                    danger 
+                    shape="circle" 
+                    icon={<StopFilled />} 
+                    size="large" 
+                    style={{ 
+                        width: 80, 
+                        height: 80, 
+                        fontSize: 32,
+                        background: hasStarted ? '#fee2e2' : '#f3f4f6',
+                        color: hasStarted ? '#ef4444' : '#d1d5db',
+                        border: 'none',
+                        cursor: hasStarted ? 'pointer' : 'not-allowed'
+                    }} 
+                    onClick={handleStop} 
+                    disabled={!hasStarted} 
+                />
+            </Space>
+
+            <Button
+                type="text"
+                icon={isFullScreen ? <FullscreenExitOutlined /> : <FullscreenOutlined />}
+                onClick={toggleFullScreen}
+                style={{ 
+                    position: 'fixed', 
+                    top: 20, 
+                    right: 20, 
+                    color: '#fff',
+                    background: 'rgba(0,0,0,0.5)', // Increased contrast
+                    zIndex: 100,
+                    padding: '8px 16px', // Larger click area
+                    borderRadius: 20,
+                    border: '1px solid rgba(255,255,255,0.2)', // Border for better definition
+                    backdropFilter: 'blur(4px)', // Glass effect
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.2)' // Shadow for depth
+                }}
+            >
+                {isFullScreen ? '退出全屏' : '全屏模式'}
+            </Button>
+        </Space>
+      </Card>
     </div>
   );
 };

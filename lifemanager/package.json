@@ -15,7 +15,6 @@
   "dependencies": {
     "@ant-design/icons": "^6.1.0",
     "@hello-pangea/dnd": "^18.0.1",
-    "@uiw/react-md-editor": "^4.0.11",
     "antd": "^6.2.2",
     "dayjs": "^1.11.19",
     "framer-motion": "^12.29.2",
@@ -25,11 +24,13 @@
     "react-dom": "^19.2.0",
     "react-icons": "^5.5.0",
     "recharts": "^3.7.0",
-    "rehype-sanitize": "^6.0.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
@@ -42,11 +43,13 @@
     "eslint-plugin-react-hooks": "^7.0.1",
     "eslint-plugin-react-refresh": "^0.4.24",
     "globals": "^16.5.0",
+    "jsdom": "^28.1.0",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4",
     "vite-plugin-electron": "^0.29.0",
     "vite-plugin-electron-renderer": "^0.14.6",
+    "vitest": "^4.0.18",
     "wait-on": "^9.0.3"
   },
   "build": {

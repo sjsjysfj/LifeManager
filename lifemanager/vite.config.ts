@@ -23,4 +23,8 @@ export default defineConfig({
     ]),
     renderer(),
   ],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+  },
 })
